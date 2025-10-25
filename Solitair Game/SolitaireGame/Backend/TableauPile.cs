@@ -23,8 +23,33 @@ namespace SolitaireGame.Backend
         {if (piles.Count > 0)
                 return piles.pop();
             else
-                return null;
+               throw new InvalidOperationException("Pile is empty");
         }
+        public List<Card> GetSequenceFromIndex(int startIndex)
+        {
+            List<Card> list = piles.ToListReversed(); 
+            if (startIndex < 0 || startIndex >= list.Count)
+                return new List<Card>();
+
+            for (int i = startIndex; i < list.Count; i++)
+            {
+                if (!list[i].IsFaceUp)
+                    return new List<Card>(); 
+            }
+
+            return list.GetRange(startIndex, list.Count - startIndex);
+        }
+
+        public void RemoveTopCards(int count)
+        {
+            if (count <= 0) return;
+            for (int i = 0; i < count; i++)
+            {
+                if (piles.Count == 0) throw new InvalidOperationException("Not enough cards to remove");
+                piles.pop();
+            }
+        }
+
         public Card getTopCard()
         {
             if(piles.Count == 0)
@@ -45,6 +70,16 @@ namespace SolitaireGame.Backend
                 top.IsFaceUp = true;
                 piles.Push(top);
             }
+        }
+        public bool CanPlaceOnTop(Card card)
+        {
+            if (piles.Count == 0)
+            {
+                return card.Rank == Rank.King;
+            }
+             Card top = piles.Peek();    
+            return top.IsFaceUp &&top.Color!=card.Color &&(int)card.Rank==(int)top.Rank-1;
+
         }
     }
 }

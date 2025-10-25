@@ -13,17 +13,15 @@ namespace SolitaireGame.Backend
             wasteCards = new MyLinkedList<Card>();
         }
 
-        // ✅ Add one card (e.g., when drawn from StockPile)
         public void AddCard(Card card)
         {
             if (card == null)
                 return;
 
-            card.IsFaceUp = true;  // Waste cards are always face up
+            card.IsFaceUp = true;  
             wasteCards.AddLast(card);
         }
 
-        // ✅ Draw top 3 cards from stock
         public void DrawFromStock(StockPile stock)
         {
             if (stock == null)
@@ -40,13 +38,11 @@ namespace SolitaireGame.Backend
             }
         }
 
-        // ✅ Get all waste cards as a list (for UI display or logic)
         public List<Card> GetAllCards()
         {
             return wasteCards.ToList();
         }
 
-        // ✅ Get top (most recent) card
         public Card GetTopCard()
         {
             Node<Card> current = wasteCards.GetHead();
@@ -60,7 +56,6 @@ namespace SolitaireGame.Backend
             return current.Data;
         }
 
-        // ✅ Remove a specific card (if one of the 3 visible is played)
         public void RemoveCard(Card card)
         {
             if (card == null)
@@ -69,13 +64,11 @@ namespace SolitaireGame.Backend
             wasteCards.Remove(card);
         }
 
-        // ✅ Clear all cards (used when resetting game)
         public void Clear()
         {
             wasteCards.Clear();
         }
 
-        // ✅ Helper for debugging
         public override string ToString()
         {
             return wasteCards.ToString();

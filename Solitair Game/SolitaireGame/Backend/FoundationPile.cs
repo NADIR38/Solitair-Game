@@ -17,5 +17,23 @@ namespace SolitaireGame.Backend
                 piles.Add(new Foundation());
             }
         }
+        public Foundation GetFoundation(Suit suit)
+        {
+            return piles[(int)suit];
+        }
+        // ✅ Optional: Print all foundations (for debugging)
+        public void PrintFoundations()
+        {
+            Console.WriteLine("\n--- Foundations ---");
+            for (int i = 0; i < piles.Count; i++)
+            {
+                var top = piles[i].GetTopcard();
+                Console.WriteLine($"Foundation {((Suit)i)}: {(top != null ? top.ToString() : "[Empty]")}");
+            }
+        }
+        public bool IsComplete()
+        {
+            return piles.All(f => f.Cards.Count == 13);
+        }
     }
 }

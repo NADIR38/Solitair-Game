@@ -10,6 +10,11 @@ namespace SolitaireGame.Backend
     public  class Foundation
     {
         public MyStack<Card> Cards;
+
+        public Foundation()
+        {
+            Cards = new MyStack<Card>();
+        }
         public bool CanAdd(Card card)
         {
             if (Cards.Count == 0)

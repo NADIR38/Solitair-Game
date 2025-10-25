@@ -58,7 +58,11 @@ namespace SolitaireGame.DataStructures
             list.Reverse();
             return list;
         }
-
+        public void Clear()
+        {
+            top = null;
+            count = 0;
+        }
         public int Count
         {
             get { return count; }

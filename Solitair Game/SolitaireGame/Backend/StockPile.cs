@@ -32,7 +32,6 @@ namespace SolitaireGame.Backend
 
         public void RefillFromWaste(IEnumerable<Card> wasteCards)
         {
-            // When stock is empty, refill it from the waste pile
             foreach (var card in wasteCards)
             {
                 stock.enqueue(card);

@@ -50,6 +50,7 @@
     <Compile Include="Backend\Deck.cs" />
     <Compile Include="Backend\Foundation.cs" />
     <Compile Include="Backend\FoundationPile.cs" />
+    <Compile Include="Backend\Movemanager.cs" />
     <Compile Include="Backend\StockPile.cs" />
     <Compile Include="Backend\TableauPile.cs" />
     <Compile Include="Backend\TableauPiles.cs" />
