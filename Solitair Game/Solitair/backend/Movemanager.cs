@@ -32,7 +32,7 @@ namespace SolitaireGame.Backend
         private void RecordMove(Commands command)
         {
             UndoStack.Push(command);
-            RedoStack.Clear(); // Clear redo on new move
+            RedoStack.Clear(); 
         }
 
         public bool MoveWasteToTableau(int pileIndex)
@@ -85,7 +85,7 @@ namespace SolitaireGame.Backend
                 },
                 Undo: () =>
                 {
-                    f.Cards.pop(); // This is fine - we're just removing, not using the return value
+                    f.Cards.pop(); 
                     waste.AddCard(topWaste);
                 }
             ));
@@ -105,7 +105,6 @@ namespace SolitaireGame.Backend
             f.Add(removed);
             tableau.piles[pileIndex].FlipTopCard();
 
-            // Fixed: Capture the wasFaceUp state before the move
             bool topCardWasFaceUp = tableau.GetTopCard(pileIndex)?.IsFaceUp ?? false;
 
             RecordMove(new Commands(
@@ -119,7 +118,6 @@ namespace SolitaireGame.Backend
                 {
                     f.Cards.pop();
                     tableau.piles[pileIndex].Addcard(removed);
-                    // Flip back if it wasn't face up originally
                     if (!topCardWasFaceUp && tableau.GetTopCard(pileIndex) != null)
                     {
                         Card top = tableau.piles[pileIndex].Removecard();
@@ -149,7 +147,6 @@ namespace SolitaireGame.Backend
             if (targetTop != null && !(IsOppositeColor(movingCard, targetTop) && IsOneRankLower(movingCard, targetTop)))
                 return false;
 
-            // Capture the state before moving
             bool fromPileTopWasFaceUp = fromPile.getTopCard()?.IsFaceUp ?? false;
 
             fromPile.RemoveTopCards(sequence.Count);
@@ -157,7 +154,6 @@ namespace SolitaireGame.Backend
             foreach (var c in sequence)
                 toPile.Addcard(c);
 
-            // Record Undo/Redo
             RecordMove(new Commands(
                 Execute: () =>
                 {
@@ -171,7 +167,6 @@ namespace SolitaireGame.Backend
                     toPile.RemoveTopCards(sequence.Count);
                     foreach (var c in sequence)
                         fromPile.Addcard(c);
-                    // Restore original face-up state
                     if (!fromPileTopWasFaceUp && fromPile.getTopCard() != null)
                     {
                         Card top = fromPile.Removecard();
@@ -199,33 +194,30 @@ namespace SolitaireGame.Backend
             if (RedoStack.Count == 0) return false;
 
             var command = RedoStack.pop();
-            command.Execute(); // Fixed: Excecute -> Execute
+            command.Execute(); 
             UndoStack.Push(command);
             return true;
         }
 
         public bool DrawFromStock()
         {
-            // If stock is empty, recycle waste pile back to stock
             if (stock.IsEmpty())
             {
                 var wasteCards = waste.GetAllCards();
                 if (wasteCards.Count == 0) return false;
 
-                // Clear waste and refill stock in reverse order (so cards maintain order)
                 waste.Clear();
                 var reversedCards = wasteCards;
                 reversedCards.Reverse();
 
                 foreach (var card in reversedCards)
                 {
-                    card.IsFaceUp = false; // Face down in stock
+                    card.IsFaceUp = false; 
                 }
 
                 stock.RefillFromWaste(reversedCards);
             }
 
-            // Draw from stock to waste
             waste.DrawFromStock(stock);
             return true;
         }

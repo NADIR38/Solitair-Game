@@ -62,14 +62,15 @@
                             for (int i = 0; i < visibleCount; i++)
                             {
                                 var card = wasteCards[startIndex + i];
-                                var isTopCard = (i == visibleCount - 1);
-                                var offsetStyle = $"left: {i * 25}px;";
+                                var cardIndex = startIndex + i;
+                                var offsetStyle = $"left: {i * 110}px;";
 
                                 <div class="card @GetCardColorClass(card)"
                                      style="@offsetStyle"
-                                     draggable="@isTopCard"
-                                     @ondragstart="@(() => OnDragStart(card, -1, -1))"
-                                     @ondblclick="@(() => TryMoveWasteToFoundation())">
+                                     draggable="true"
+                                     @ondragstart="@((e) => OnDragStart(card, -1, cardIndex))"
+                                     @ondragstart:preventDefault="false"
+                                     @ondblclick="@(() => TryMoveWasteToFoundation(cardIndex))">
                                     <div class="card-content">
                                         <span class="card-rank">@GetRankDisplay(card.Rank)</span>
                                         <span class="card-suit">@GetSuitSymbol(card.Suit)</span>
@@ -140,12 +141,13 @@
                             {
                                 var card = cards[cardIdx];
                                 int currentCardIndex = cardIdx;
-                                var offsetStyle = $"top: {cardIdx * 25}px;";
+                                var offsetStyle = $"top: {cardIdx * 30}px;";
 
                                 <div class="card @(card.IsFaceUp? GetCardColorClass(card) : "card-back")"
                                      style="@offsetStyle"
-                                     draggable="@card.IsFaceUp"
-                                     @ondragstart="@(() => OnDragStart(card, currentPileIndex, currentCardIndex))"
+                                     draggable="@card.IsFaceUp.ToString().ToLower()"
+                                     @ondragstart="@((e) => OnDragStart(card, currentPileIndex, currentCardIndex))"
+                                     @ondragstart:preventDefault="false"
                                      @ondblclick="@(() => TryMoveTableauToFoundation(currentPileIndex))">
                                     @if (card.IsFaceUp)
                                     {
@@ -249,44 +251,69 @@
 
     private void OnDragStart(Card card, int pileIndex, int cardIndex)
     {
-        // Only allow dragging from waste if it's the top card
-        if (pileIndex == -1)
-        {
-            var wasteCards = wastePile.GetAllCards();
-            if (wasteCards.Any() && wasteCards.Last() != card)
-            {
-                return; // Not the top card, don't allow drag
-            }
-        }
-
         draggedCard = card;
         dragSourcePile = pileIndex;
         dragSourceCardIndex = cardIndex;
+        Console.WriteLine($"Drag started: Card={card}, Pile={pileIndex}, Index={cardIndex}");
     }
 
     private void OnDragOver(DragEventArgs e)
     {
-        // Allow drop
+        // Allow drop by preventing default
     }
 
     private void OnDropOnTableau(int targetPileIndex)
     {
+        Console.WriteLine($"Drop on tableau {targetPileIndex}: DraggedCard={draggedCard?.ToString() ?? "null"}");
+
         if (draggedCard == null) return;
 
         bool success = false;
 
         if (dragSourcePile == -1) // From waste
         {
-            success = moveManager.MoveWasteToTableau(targetPileIndex);
+            // Find the actual card in waste pile
+            var wasteCards = wastePile.GetAllCards();
+            var cardToMove = wasteCards[dragSourceCardIndex];
+
+            // Temporarily remove to check if move is valid
+            var targetTop = tableauPiles.GetTopCard(targetPileIndex);
+
+            // Check if move is valid
+            if (targetTop == null && cardToMove.Rank != Rank.King)
+            {
+                Console.WriteLine("Failed: Only King can go on empty tableau");
+            }
+            else if (targetTop != null && !(IsOppositeColor(cardToMove, targetTop) && IsOneRankLower(cardToMove, targetTop)))
+            {
+                Console.WriteLine("Failed: Invalid tableau move");
+            }
+            else
+            {
+                // Remove the selected card from waste
+                wastePile.RemoveCard(cardToMove);
+                tableauPiles.piles[targetPileIndex].Addcard(cardToMove);
+                success = true;
+                moveCount++;
+                Console.WriteLine("Success: Moved from waste to tableau");
+            }
         }
         else // From tableau
         {
             success = moveManager.MoveTableauToTableau(dragSourcePile, dragSourceCardIndex, targetPileIndex);
+            if (success)
+            {
+                moveCount++;
+                Console.WriteLine("Success: Moved from tableau to tableau");
+            }
+            else
+            {
+                Console.WriteLine("Failed: Invalid tableau to tableau move");
+            }
         }
 
         if (success)
         {
-            moveCount++;
             CheckWinCondition();
         }
 
@@ -298,22 +325,47 @@
 
     private void OnDropOnFoundation(int foundationIndex)
     {
+        Console.WriteLine($"Drop on foundation {foundationIndex}");
+
         if (draggedCard == null) return;
 
         bool success = false;
 
         if (dragSourcePile == -1) // From waste
         {
-            success = moveManager.MoveWasteToFoundation();
+            var wasteCards = wastePile.GetAllCards();
+            var cardToMove = wasteCards[dragSourceCardIndex];
+
+            Foundation f = foundationPile.GetFoundation(cardToMove.Suit);
+            if (f.CanAdd(cardToMove))
+            {
+                wastePile.RemoveCard(cardToMove);
+                f.Add(cardToMove);
+                success = true;
+                moveCount++;
+                Console.WriteLine("Success: Moved from waste to foundation");
+            }
+            else
+            {
+                Console.WriteLine("Failed: Invalid foundation move");
+            }
         }
         else // From tableau
         {
             success = moveManager.MoveTableauToFoundation(dragSourcePile);
+            if (success)
+            {
+                moveCount++;
+                Console.WriteLine("Success: Moved from tableau to foundation");
+            }
+            else
+            {
+                Console.WriteLine("Failed: Invalid tableau to foundation move");
+            }
         }
 
         if (success)
         {
-            moveCount++;
             CheckWinCondition();
         }
 
@@ -323,13 +375,22 @@
         StateHasChanged();
     }
 
-    private void TryMoveWasteToFoundation()
+    private void TryMoveWasteToFoundation(int wasteCardIndex)
     {
-        if (moveManager.MoveWasteToFoundation())
+        var wasteCards = wastePile.GetAllCards();
+        if (wasteCardIndex >= 0 && wasteCardIndex < wasteCards.Count)
         {
-            moveCount++;
-            CheckWinCondition();
-            StateHasChanged();
+            var cardToMove = wasteCards[wasteCardIndex];
+            Foundation f = foundationPile.GetFoundation(cardToMove.Suit);
+
+            if (f.CanAdd(cardToMove))
+            {
+                wastePile.RemoveCard(cardToMove);
+                f.Add(cardToMove);
+                moveCount++;
+                CheckWinCondition();
+                StateHasChanged();
+            }
         }
     }
 
@@ -445,6 +506,16 @@
             Suit.Spades => "♠",
             _ => ""
         };
+    }
+
+    private bool IsOppositeColor(Card a, Card b)
+    {
+        return a.Color != b.Color;
+    }
+
+    private bool IsOneRankLower(Card lower, Card higher)
+    {
+        return (int)higher.Rank - (int)lower.Rank == 1;
     }
 
     public void Dispose()

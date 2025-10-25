@@ -21,7 +21,6 @@ namespace SolitaireGame.Backend
         {
             return piles[(int)suit];
         }
-        // ✅ Optional: Print all foundations (for debugging)
         public void PrintFoundations()
         {
             Console.WriteLine("\n--- Foundations ---");
