@@ -1,0 +1,454 @@
+﻿@page "/solitaire"
+@using SolitaireGame.Backend
+@using SolitaireGame.DataStructures
+
+<PageTitle>Solitaire Game</PageTitle>
+
+<div class="solitaire-container">
+    <div class="game-header">
+        <h1>🃏 Solitaire</h1>
+        <div class="game-controls">
+            <button class="btn btn-primary" @onclick="NewGame">New Game</button>
+            <button class="btn btn-secondary" @onclick="UndoMove" disabled="@(moveManager == null)">↶ Undo</button>
+            <button class="btn btn-secondary" @onclick="RedoMove" disabled="@(moveManager == null)">↷ Redo</button>
+            <button class="btn btn-success" @onclick="AutoComplete" disabled="@(!canAutoComplete)">Auto Complete</button>
+        </div>
+        <div class="game-stats">
+            <span>Moves: @moveCount</span>
+            <span>Time: @elapsedTime</span>
+        </div>
+    </div>
+
+    @if (showWinMessage)
+    {
+        <div class="win-message">
+            <h2>🎉 Congratulations! You Won! 🎉</h2>
+            <p>Moves: @moveCount | Time: @elapsedTime</p>
+            <button class="btn btn-primary" @onclick="NewGame">Play Again</button>
+        </div>
+    }
+
+    <div class="game-board">
+        <!-- Top Row: Stock, Waste, and Foundations -->
+        <div class="top-row">
+            <div class="left-section">
+                <!-- Stock Pile -->
+                <div class="stock-pile" @onclick="DrawCards">
+                    @if (stockPile != null && stockPile.Count > 0)
+                    {
+                        <div class="card card-back">
+                            <span class="card-count">@stockPile.Count</span>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="card card-empty">
+                            <span class="recycle-icon">↻</span>
+                        </div>
+                    }
+                </div>
+
+                <!-- Waste Pile -->
+                <div class="waste-pile-container">
+                    @if (wastePile != null)
+                    {
+                        var wasteCards = wastePile.GetAllCards();
+                        if (wasteCards.Any())
+                        {
+                            // Show last 3 cards (or fewer if less available)
+                            var visibleCount = Math.Min(3, wasteCards.Count);
+                            var startIndex = wasteCards.Count - visibleCount;
+
+                            for (int i = 0; i < visibleCount; i++)
+                            {
+                                var card = wasteCards[startIndex + i];
+                                var isTopCard = (i == visibleCount - 1);
+                                var offsetStyle = $"left: {i * 25}px;";
+
+                                <div class="card @GetCardColorClass(card)"
+                                     style="@offsetStyle"
+                                     draggable="@isTopCard"
+                                     @ondragstart="@(() => OnDragStart(card, -1, -1))"
+                                     @ondblclick="@(() => TryMoveWasteToFoundation())">
+                                    <div class="card-content">
+                                        <span class="card-rank">@GetRankDisplay(card.Rank)</span>
+                                        <span class="card-suit">@GetSuitSymbol(card.Suit)</span>
+                                    </div>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <div class="card card-empty"></div>
+                        }
+                    }
+                </div>
+            </div>
+
+            <!-- Foundation Piles -->
+            <div class="foundations">
+                @if (foundationPile != null)
+                {
+                    @for (int i = 0; i < 4; i++)
+                    {
+                        var suit = (Suit)i;
+                        var foundation = foundationPile.GetFoundation(suit);
+                        var topCard = foundation.GetTopcard();
+                        int foundationIndex = i;
+
+                        <div class="foundation-pile"
+                             @ondragover="@(e => OnDragOver(e))"
+                             @ondragover:preventDefault="true"
+                             @ondrop="@(() => OnDropOnFoundation(foundationIndex))">
+                            @if (topCard != null)
+                            {
+                                <div class="card @GetCardColorClass(topCard)">
+                                    <div class="card-content">
+                                        <span class="card-rank">@GetRankDisplay(topCard.Rank)</span>
+                                        <span class="card-suit">@GetSuitSymbol(topCard.Suit)</span>
+                                    </div>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="card card-foundation-empty">
+                                    <span class="suit-placeholder">@GetSuitSymbol(suit)</span>
+                                </div>
+                            }
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+
+        <!-- Tableau Piles -->
+        <div class="tableau">
+            @if (tableauPiles != null)
+            {
+                @for (int pileIdx = 0; pileIdx < 7; pileIdx++)
+                {
+                    var cards = tableauPiles.GetCardsInPile(pileIdx);
+                    int currentPileIndex = pileIdx;
+
+                    <div class="tableau-pile"
+                         @ondragover="@(e => OnDragOver(e))"
+                         @ondragover:preventDefault="true"
+                         @ondrop="@(() => OnDropOnTableau(currentPileIndex))">
+                        @if (cards.Any())
+                        {
+                            @for (int cardIdx = 0; cardIdx < cards.Count; cardIdx++)
+                            {
+                                var card = cards[cardIdx];
+                                int currentCardIndex = cardIdx;
+                                var offsetStyle = $"top: {cardIdx * 25}px;";
+
+                                <div class="card @(card.IsFaceUp? GetCardColorClass(card) : "card-back")"
+                                     style="@offsetStyle"
+                                     draggable="@card.IsFaceUp"
+                                     @ondragstart="@(() => OnDragStart(card, currentPileIndex, currentCardIndex))"
+                                     @ondblclick="@(() => TryMoveTableauToFoundation(currentPileIndex))">
+                                    @if (card.IsFaceUp)
+                                    {
+                                        <div class="card-content">
+                                            <span class="card-rank">@GetRankDisplay(card.Rank)</span>
+                                            <span class="card-suit">@GetSuitSymbol(card.Suit)</span>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <div class="card card-empty"></div>
+                        }
+                    </div>
+                }
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private Deck deck;
+    private TableauPiles tableauPiles;
+    private FoundationPile foundationPile;
+    private WastePile wastePile;
+    private StockPile stockPile;
+    private Movemanager moveManager;
+
+    private Card draggedCard;
+    private int dragSourcePile = -1;
+    private int dragSourceCardIndex = -1;
+
+    private int moveCount = 0;
+    private bool showWinMessage = false;
+    private bool canAutoComplete = false;
+
+    private System.Threading.Timer gameTimer;
+    private int elapsedSeconds = 0;
+    private string elapsedTime = "00:00";
+
+    protected override void OnInitialized()
+    {
+        NewGame();
+        StartTimer();
+    }
+
+    private void StartTimer()
+    {
+        gameTimer = new System.Threading.Timer(_ =>
+        {
+            elapsedSeconds++;
+            elapsedTime = $"{elapsedSeconds / 60:D2}:{elapsedSeconds % 60:D2}";
+            InvokeAsync(StateHasChanged);
+        }, null, 1000, 1000);
+    }
+
+    private void NewGame()
+    {
+        // Initialize all game components
+        deck = new Deck();
+        deck.IntializeDeck();
+        deck.ShuffleCards(deck.GetCards());
+
+        tableauPiles = new TableauPiles();
+        foundationPile = new FoundationPile();
+        wastePile = new WastePile();
+
+        // Deal cards to tableau
+        tableauPiles.DealCards(deck);
+
+        // Remaining cards go to stock
+        var remainingCards = new List<Card>();
+        while (deck.GetrmainingCardCount() > 0)
+        {
+            remainingCards.Add(deck.DrawTopCard());
+        }
+        stockPile = new StockPile(remainingCards);
+
+        // Initialize move manager
+        moveManager = new Movemanager(tableauPiles, foundationPile, wastePile, stockPile);
+
+        // Reset game state
+        moveCount = 0;
+        showWinMessage = false;
+        canAutoComplete = false;
+        elapsedSeconds = 0;
+        elapsedTime = "00:00";
+    }
+
+    private void DrawCards()
+    {
+        if (moveManager != null)
+        {
+            moveManager.DrawFromStock();
+            moveCount++;
+            StateHasChanged();
+        }
+    }
+
+    private void OnDragStart(Card card, int pileIndex, int cardIndex)
+    {
+        // Only allow dragging from waste if it's the top card
+        if (pileIndex == -1)
+        {
+            var wasteCards = wastePile.GetAllCards();
+            if (wasteCards.Any() && wasteCards.Last() != card)
+            {
+                return; // Not the top card, don't allow drag
+            }
+        }
+
+        draggedCard = card;
+        dragSourcePile = pileIndex;
+        dragSourceCardIndex = cardIndex;
+    }
+
+    private void OnDragOver(DragEventArgs e)
+    {
+        // Allow drop
+    }
+
+    private void OnDropOnTableau(int targetPileIndex)
+    {
+        if (draggedCard == null) return;
+
+        bool success = false;
+
+        if (dragSourcePile == -1) // From waste
+        {
+            success = moveManager.MoveWasteToTableau(targetPileIndex);
+        }
+        else // From tableau
+        {
+            success = moveManager.MoveTableauToTableau(dragSourcePile, dragSourceCardIndex, targetPileIndex);
+        }
+
+        if (success)
+        {
+            moveCount++;
+            CheckWinCondition();
+        }
+
+        draggedCard = null;
+        dragSourcePile = -1;
+        dragSourceCardIndex = -1;
+        StateHasChanged();
+    }
+
+    private void OnDropOnFoundation(int foundationIndex)
+    {
+        if (draggedCard == null) return;
+
+        bool success = false;
+
+        if (dragSourcePile == -1) // From waste
+        {
+            success = moveManager.MoveWasteToFoundation();
+        }
+        else // From tableau
+        {
+            success = moveManager.MoveTableauToFoundation(dragSourcePile);
+        }
+
+        if (success)
+        {
+            moveCount++;
+            CheckWinCondition();
+        }
+
+        draggedCard = null;
+        dragSourcePile = -1;
+        dragSourceCardIndex = -1;
+        StateHasChanged();
+    }
+
+    private void TryMoveWasteToFoundation()
+    {
+        if (moveManager.MoveWasteToFoundation())
+        {
+            moveCount++;
+            CheckWinCondition();
+            StateHasChanged();
+        }
+    }
+
+    private void TryMoveTableauToFoundation(int pileIndex)
+    {
+        if (moveManager.MoveTableauToFoundation(pileIndex))
+        {
+            moveCount++;
+            CheckWinCondition();
+            StateHasChanged();
+        }
+    }
+
+    private void UndoMove()
+    {
+        if (moveManager != null && moveManager.UndoLastMove())
+        {
+            moveCount--;
+            showWinMessage = false;
+            StateHasChanged();
+        }
+    }
+
+    private void RedoMove()
+    {
+        if (moveManager != null && moveManager.RedoLastMove())
+        {
+            moveCount++;
+            CheckWinCondition();
+            StateHasChanged();
+        }
+    }
+
+    private void AutoComplete()
+    {
+        // Simple auto-complete: try moving all face-up cards to foundations
+        bool madeMoves = true;
+        while (madeMoves)
+        {
+            madeMoves = false;
+
+            // Try waste to foundation
+            if (moveManager.MoveWasteToFoundation())
+            {
+                madeMoves = true;
+                moveCount++;
+                continue;
+            }
+
+            // Try all tableau piles to foundation
+            for (int i = 0; i < 7; i++)
+            {
+                if (moveManager.MoveTableauToFoundation(i))
+                {
+                    madeMoves = true;
+                    moveCount++;
+                    break;
+                }
+            }
+        }
+
+        CheckWinCondition();
+        StateHasChanged();
+    }
+
+    private void CheckWinCondition()
+    {
+        if (moveManager.CheckWin())
+        {
+            showWinMessage = true;
+            gameTimer?.Dispose();
+        }
+        else
+        {
+            // Check if auto-complete is possible (all cards face up)
+            canAutoComplete = true;
+            for (int i = 0; i < 7; i++)
+            {
+                var cards = tableauPiles.GetCardsInPile(i);
+                if (cards.Any(c => !c.IsFaceUp))
+                {
+                    canAutoComplete = false;
+                    break;
+                }
+            }
+        }
+    }
+
+    private string GetCardColorClass(Card card)
+    {
+        return card.Color == Color.Red ? "card-red" : "card-black";
+    }
+
+    private string GetRankDisplay(Rank rank)
+    {
+        return rank switch
+        {
+            Rank.Ace => "A",
+            Rank.Jack => "J",
+            Rank.Queen => "Q",
+            Rank.King => "K",
+            _ => ((int)rank).ToString()
+        };
+    }
+
+    private string GetSuitSymbol(Suit suit)
+    {
+        return suit switch
+        {
+            Suit.Hearts => "♥",
+            Suit.Diamonds => "♦",
+            Suit.Clubs => "♣",
+            Suit.Spades => "♠",
+            _ => ""
+        };
+    }
+
+    public void Dispose()
+    {
+        gameTimer?.Dispose();
+    }
+}
