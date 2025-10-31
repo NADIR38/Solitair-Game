@@ -1,28 +1,28 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace SolitaireGame.DataStructures
 {
-    public  class MyStack<T>
+    public class MyStack<T>
     {
         private Node<T> top { get; set; }
-        private int count {  get; set; }
+        private int count { get; set; }
+
         public MyStack()
         {
             top = null;
             count = 0;
         }
+
         public void Push(T item)
         {
-            Node<T> temp= new Node<T>(item);
+            Node<T> temp = new Node<T>(item);
             temp.Next = top;
             top = temp;
             count++;
         }
-        public T pop()
+
+        public T Pop()
         {
             if (IsEmpty())
             {
@@ -33,16 +33,19 @@ namespace SolitaireGame.DataStructures
             count--;
             return item;
         }
+
         public T Peek()
         {
             if (IsEmpty())
-            throw new InvalidOperationException("Stack is empty.");
+                throw new InvalidOperationException("Stack is empty.");
             return top.Data;
         }
+
         public bool IsEmpty()
         {
             return count == 0;
         }
+
         public List<T> ToListReversed()
         {
             List<T> list = new List<T>();
@@ -58,15 +61,16 @@ namespace SolitaireGame.DataStructures
             list.Reverse();
             return list;
         }
+
         public void Clear()
         {
             top = null;
             count = 0;
         }
+
         public int Count
         {
             get { return count; }
         }
-        
     }
 }

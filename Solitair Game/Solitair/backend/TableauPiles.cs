@@ -25,7 +25,7 @@ namespace SolitaireGame.Backend
                 for (int j = 0; j <= i; j++)
                 {
                     Card card = deck.DrawTopCard();
-                    piles[i].Addcard(card);
+                    piles[i].AddCard(card);
                     if (j == i)
                     {
                         card.IsFaceUp = true;
@@ -33,12 +33,12 @@ namespace SolitaireGame.Backend
                 }
             }
         }
-        public Card GetTopCard(int pileIndex) => piles[pileIndex].getTopCard();
+        public Card GetTopCard(int pileIndex) => piles[pileIndex].GetTopCard();
         public List<Card> GetCardsInPile(int pileIndex) => piles[pileIndex].GetCards();
         public void AddSequenceToPile(int pileIndex, List<Card> sequence)
         {
             foreach (var card in sequence)
-                piles[pileIndex].Addcard(card);
+                piles[pileIndex].AddCard(card);
         }
         public void RemoveTopCardsFromPile(int pileIndex, int count)
         {

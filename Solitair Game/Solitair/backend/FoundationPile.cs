@@ -34,5 +34,6 @@ namespace SolitaireGame.Backend
         {
             return piles.All(f => f.Cards.Count == 13);
         }
+
     }
 }

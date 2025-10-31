@@ -15,36 +15,47 @@ namespace SolitaireGame.Backend
 
         public bool IsEmpty()
         {
-            return stock.Isempty();
+            return stock.IsEmpty();
         }
 
-        public List<Card> DrawThree()
-        {
-            var drawnCards = new List<Card>();
-
-            for (int i = 0; i < 3 && !stock.Isempty(); i++)
-            {
-                drawnCards.Add(stock.Dequeue());
-            }
-
-            return drawnCards;
-        }
-        public void RefillFromWaste(IEnumerable<Card> wasteCards)
-        {
-            var reversedCards = wasteCards.Reverse();
-            foreach (var card in reversedCards)
-            {
-                card.IsFaceUp = false;
-                stock.enqueue(card);
-            }
-        }
         public Card DrawOne()
         {
-            if (stock.Isempty())
+            if (stock.IsEmpty())
                 return null;
 
             return stock.Dequeue();
         }
+
+        // New method to support undo
+        public void AddCard(Card card)
+        {
+            if (card == null)
+                return;
+            stock.Enqueue(card);
+        }
+
+        // New method to add card to front (for undo of draw)
+        public void AddCardToFront(Card card)
+        {
+            if (card == null)
+                return;
+
+            // Create new queue with card at front
+            var tempList = new List<Card> { card };
+
+            // Add existing cards
+            while (!stock.IsEmpty())
+            {
+                tempList.Add(stock.Dequeue());
+            }
+
+            // Rebuild queue
+            foreach (var c in tempList)
+            {
+                stock.Enqueue(c);
+            }
+        }
+
         public int Count
         {
             get { return stock.Count; }

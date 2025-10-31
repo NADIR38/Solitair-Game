@@ -1,74 +1,77 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace SolitaireGame.DataStructures
 {
-    public  class MyQueue<T>
+    public class MyQueue<T>
     {
         public Node<T> front;
         public Node<T> back;
         public int count;
+
         public MyQueue()
-            {
-            front=back=null;
-            count=0;
-            }
+        {
+            front = back = null;
+            count = 0;
+        }
+
         public MyQueue(IEnumerable<T> collection)
-          : this() // call default constructor
+            : this() 
         {
             foreach (var item in collection)
             {
-                enqueue(item);
+                Enqueue(item);
             }
         }
-        public void enqueue(T item)
+
+        public void Enqueue(T item)
         {
-            Node<T> newnode=new Node<T>(item);
-            if (Isempty())
+            Node<T> newnode = new Node<T>(item);
+            if (IsEmpty())
             {
-                front=back=newnode;
+                front = back = newnode;
                 count++;
             }
             else
             {
-                back.Next=newnode;
+                back.Next = newnode;
                 back = newnode;
                 count++;
             }
-
         }
+
         public T Dequeue()
         {
-            if (Isempty())
+            if (IsEmpty())
             {
                 throw new InvalidOperationException("Queue is empty");
-
             }
-            T removedata=front.Data;
+            T removedata = front.Data;
             front = front.Next;
             count--;
+
+            if (front == null)
+            {
+                back = null;
+            }
+
             return removedata;
-
-
         }
 
-        public bool Isempty()
+        public bool IsEmpty()
         {
-            return front==null;
+            return front == null;
         }
-            public T getfront()
+
+        public T GetFront()
         {
-            if (Isempty())
+            if (IsEmpty())
             {
                 throw new InvalidOperationException("Queue is empty");
-                
-               
             }
             return front.Data;
         }
+
         public int Count
         {
             get { return count; }

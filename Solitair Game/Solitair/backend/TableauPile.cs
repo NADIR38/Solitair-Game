@@ -2,46 +2,29 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Xml.Serialization;
 
 namespace SolitaireGame.Backend
 {
     public class TableauPile
     {
-        public MyStack<Card> piles;
+        private MyStack<Card> piles;
+
         public TableauPile()
         {
             piles = new MyStack<Card>();
         }
 
-        public void Addcard(Card card)
+        public void AddCard(Card card)
         {
             piles.Push(card);
         }
 
-        public Card Removecard()
+        public Card RemoveCard()
         {
             if (piles.Count > 0)
-                return piles.pop();
+                return piles.Pop();
             else
                 throw new InvalidOperationException("Pile is empty");
-        }
-
-        public List<Card> GetSequenceFromIndex(int startIndex)
-        {
-            List<Card> list = piles.ToListReversed();
-            if (startIndex < 0 || startIndex >= list.Count)
-                return new List<Card>();
-
-            for (int i = startIndex; i < list.Count; i++)
-            {
-                if (!list[i].IsFaceUp)
-                    return new List<Card>();
-            }
-
-            return list.GetRange(startIndex, list.Count - startIndex);
         }
 
         public void RemoveTopCards(int count)
@@ -49,12 +32,13 @@ namespace SolitaireGame.Backend
             if (count <= 0) return;
             for (int i = 0; i < count; i++)
             {
-                if (piles.Count == 0) throw new InvalidOperationException("Not enough cards to remove");
-                piles.pop();
+                if (piles.Count == 0)
+                    throw new InvalidOperationException("Not enough cards to remove");
+                piles.Pop();
             }
         }
 
-        public Card getTopCard()
+        public Card GetTopCard()
         {
             if (piles.Count == 0)
             {
