@@ -2,19 +2,37 @@
 @using SolitaireGame.Backend
 @using SolitaireGame.DataStructures
 @implements IDisposable
-
+@inject IJSRuntime JSRuntime
+@inject ILocalStorageService LocalStorage
 <PageTitle>Solitaire Game</PageTitle>
 
 <div class="solitaire-container">
+    <!-- Show Load Prompt on Startup -->
+    @if (showLoadPrompt)
+    {
+        <div class="modal-overlay">
+            <div class="modal-dialog">
+                <h2>📂 Saved Game Found</h2>
+                <p>You have a saved game from @savedGameDate</p>
+                <p>Score: @savedGameScore | Moves: @savedGameMoves | Time: @savedGameTime</p>
+                <div class="modal-buttons">
+                    <button class="btn btn-primary" @onclick="LoadSavedGame">Load Game</button>
+                    <button class="btn btn-secondary" @onclick="StartNewGame">New Game</button>
+                </div>
+            </div>
+        </div>
+    }
+
     <div class="game-header">
         <h1>🃏 Solitaire</h1>
         <div class="game-controls">
-            <button class="btn btn-primary" @onclick="NewGame">New Game</button>
+            <button class="btn btn-primary" @onclick="ConfirmNewGame">New Game</button>
             <button class="btn btn-secondary" @onclick="UndoMove" disabled="@(!canUndo)">↶ Undo</button>
             <button class="btn btn-secondary" @onclick="RedoMove" disabled="@(!canRedo)">↷ Redo</button>
             <button class="btn btn-success" @onclick="AutoComplete" disabled="@(!canAutoComplete)">Auto Complete</button>
         </div>
         <div class="game-stats">
+            <span>Score: @(moveManager?.GetCurrentScore() ?? 0)</span>
             <span>Moves: @moveCount</span>
             <span>Time: @elapsedTime</span>
         </div>
@@ -24,11 +42,12 @@
     {
         <div class="win-message">
             <h2>🎉 Congratulations! You Won! 🎉</h2>
-            <p>Moves: @moveCount | Time: @elapsedTime</p>
-            <button class="btn btn-primary" @onclick="NewGame">Play Again</button>
+            <p>Score: @(moveManager?.GetCurrentScore() ?? 0) | Moves: @moveCount | Time: @elapsedTime</p>
+            <button class="btn btn-primary" @onclick="StartNewGame">Play Again</button>
         </div>
     }
 
+    <!-- Rest of your game board HTML stays exactly the same -->
     <div class="game-board">
         <!-- Top Row: Stock, Waste, and Foundations -->
         <div class="top-row">
@@ -56,7 +75,6 @@
                         var wasteCards = wastePile.GetAllCards();
                         if (wasteCards.Any())
                         {
-                            // Show last 3 cards (or fewer if less available)
                             var visibleCount = Math.Min(3, wasteCards.Count);
                             var startIndex = wasteCards.Count - visibleCount;
 
@@ -198,8 +216,210 @@
     private int elapsedSeconds = 0;
     private string elapsedTime = "00:00";
 
-    protected override void OnInitialized()
+    // Load prompt state
+    private bool showLoadPrompt = false;
+    private string savedGameDate = "";
+    private int savedGameScore = 0;
+    private int savedGameMoves = 0;
+    private string savedGameTime = "";
+    private GameState pendingSavedState = null;
+
+    // ✅ FIX: Use this flag to track initialization
+    private bool isInitialized = false;
+    private System.Threading.Timer autoSaveTimer;
+
+    protected override async Task OnInitializedAsync()
     {
+        try
+        {
+            // ✅ Check for saved game in localStorage
+            await CheckForSavedGameAsync();
+
+            // Start auto-save timer
+            StartAutoSaveTimer();
+
+            Console.WriteLine($"✅ OnInitializedAsync completed. showLoadPrompt = {showLoadPrompt}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Error in OnInitializedAsync: {ex.Message}");
+        }
+    }
+    private void StartAutoSaveTimer()
+    {
+        autoSaveTimer?.Dispose();
+
+        // Auto-save every 10 seconds
+        autoSaveTimer = new System.Threading.Timer(_ =>
+        {
+            AutoSaveGame();
+        }, null, 10000, 10000); // First save after 10s, then every 10s
+    }
+
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender && !isInitialized)
+        {
+            isInitialized = true;
+
+            // Only start new game if no saved game found
+            if (!showLoadPrompt)
+            {
+                Console.WriteLine("ℹ️ No saved game found, starting new game");
+                NewGame();
+                StateHasChanged();
+            }
+            else
+            {
+                Console.WriteLine("ℹ️ Saved game found, showing load prompt");
+            }
+        }
+    }
+
+    private async Task CheckForSavedGameAsync()
+    {
+        try
+        {
+            Console.WriteLine("🔍 Checking localStorage for saved game...");
+
+            var tempTableau = new TableauPiles();
+            var tempFoundation = new FoundationPile();
+            var tempWaste = new WastePile();
+            var tempStock = new StockPile(new List<Card>());
+            var tempManager = new Movemanager(tempTableau, tempFoundation, tempWaste, tempStock);
+
+            // ✅ Set localStorage service
+            tempManager.SetLocalStorage(LocalStorage);
+
+            var savedState = await tempManager.LoadGameAsync();
+
+            if (savedState != null)
+            {
+                Console.WriteLine("✅ Saved game found in localStorage!");
+
+                showLoadPrompt = true;
+                pendingSavedState = savedState;
+                savedGameDate = savedState.SavedAt.ToString("MMM dd, yyyy HH:mm");
+                savedGameScore = savedState.CurrentScore;
+                savedGameMoves = savedState.MoveCount;
+                int seconds = savedState.ElapsedSeconds;
+                savedGameTime = $"{seconds / 60:D2}:{seconds % 60:D2}";
+            }
+            else
+            {
+                Console.WriteLine("ℹ️ No saved game in localStorage");
+                showLoadPrompt = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Error checking localStorage: {ex.Message}");
+            showLoadPrompt = false;
+        }
+    }
+    private void LoadSavedGame()
+    {
+        try
+        {
+            Console.WriteLine("📂 Loading saved game from localStorage...");
+            showLoadPrompt = false;
+
+            if (pendingSavedState != null)
+            {
+                // ✅ Create initial empty components
+                tableauPiles = new TableauPiles();
+                foundationPile = new FoundationPile();
+                wastePile = new WastePile();
+                stockPile = new StockPile(new List<Card>());
+
+                // ✅ Create moveManager with initial components
+                moveManager = new Movemanager(tableauPiles, foundationPile, wastePile, stockPile);
+                moveManager.SetLocalStorage(LocalStorage);
+
+                // ✅ Restore the game state
+                TableauPiles restoredTableau;
+                FoundationPile restoredFoundations;
+                WastePile restoredWaste;
+                StockPile restoredStock;
+                int restoredMoves, restoredSeconds, restoredScore;
+
+                bool success = moveManager.RestoreGame(
+                    pendingSavedState,
+                    out restoredTableau,
+                    out restoredFoundations,
+                    out restoredWaste,
+                    out restoredStock,
+                    out restoredMoves,
+                    out restoredSeconds,
+                    out restoredScore
+                );
+
+                if (success)
+                {
+                    Console.WriteLine("✅ Game restored successfully!");
+
+                    // ✅ CRITICAL: Update ALL references to the restored objects
+                    tableauPiles = restoredTableau;
+                    foundationPile = restoredFoundations;
+                    wastePile = restoredWaste;
+                    stockPile = restoredStock;  // ✅ This updates the UI reference
+
+                    // ✅ IMPORTANT: Recreate moveManager with the restored components
+                    moveManager = new Movemanager(tableauPiles, foundationPile, wastePile, stockPile);
+                    moveManager.SetLocalStorage(LocalStorage);
+
+                    moveCount = restoredMoves;
+                    elapsedSeconds = restoredSeconds;
+                    elapsedTime = $"{elapsedSeconds / 60:D2}:{elapsedSeconds % 60:D2}";
+                    showWinMessage = false;
+
+                    StartTimer();
+                    UpdateUIState();
+
+                    // ✅ Debug logging
+                    Console.WriteLine($"Stock cards after load: {stockPile.Count}");
+                    Console.WriteLine($"Waste cards after load: {wastePile.GetAllCards().Count}");
+                }
+                else
+                {
+                    Console.WriteLine("❌ Failed to restore game, starting new game");
+                    NewGame();
+                }
+            }
+            else
+            {
+                Console.WriteLine("⚠️ No pending saved state, starting new game");
+                NewGame();
+            }
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Error loading saved game: {ex.Message}");
+            Console.WriteLine($"   Stack: {ex.StackTrace}");
+            NewGame();
+            StateHasChanged();
+        }
+    }
+ // ✅ UPDATE StartNewGame to delete from localStorage
+    private async void StartNewGame()
+    {
+        Console.WriteLine("🆕 Starting new game");
+        showLoadPrompt = false;
+
+        // ✅ Delete saved game from localStorage
+        await LocalStorage.RemoveItemAsync("solitaire_savegame");
+        Console.WriteLine("🗑️ Deleted saved game from localStorage");
+
+        NewGame();
+        StateHasChanged();
+    }
+    private void ConfirmNewGame()
+    {
+        // Just start new game directly (or add confirmation if you want)
+        Console.WriteLine("🆕 New game button clicked");
         NewGame();
     }
 
@@ -217,6 +437,7 @@
 
     private void NewGame()
     {
+        Console.WriteLine("🎮 Initializing new game...");
         gameTimer?.Dispose();
 
         deck = new Deck();
@@ -238,6 +459,11 @@
 
         moveManager = new Movemanager(tableauPiles, foundationPile, wastePile, stockPile);
 
+        // ✅ Set localStorage service
+        moveManager.SetLocalStorage(LocalStorage);
+
+        moveManager.ResetScore();
+
         moveCount = 0;
         showWinMessage = false;
         elapsedSeconds = 0;
@@ -253,6 +479,7 @@
         {
             moveCount++;
             UpdateUIState();
+            AutoSaveGame(); // ✅ Save after move
             StateHasChanged();
         }
     }
@@ -266,7 +493,7 @@
 
     private void OnDragOver(DragEventArgs e)
     {
-        // Allow drop by preventing default
+        // Allow drop
     }
 
     private void OnDropOnTableau(int targetPileIndex)
@@ -275,11 +502,11 @@
 
         bool success = false;
 
-        if (dragSourcePile == -1) // From waste
+        if (dragSourcePile == -1)
         {
             success = moveManager.MoveWasteToTableau(targetPileIndex, dragSourceCardIndex);
         }
-        else // From tableau
+        else
         {
             success = moveManager.MoveTableauToTableau(dragSourcePile, dragSourceCardIndex, targetPileIndex);
         }
@@ -288,6 +515,7 @@
         {
             moveCount++;
             CheckWinCondition();
+            AutoSaveGame(); // ✅ Save after move
         }
 
         ClearDragState();
@@ -300,14 +528,14 @@
 
         bool success = false;
 
-        if (dragSourcePile == -1) // From waste
+        if (dragSourcePile == -1)
         {
             success = moveManager.MoveWasteToFoundation(dragSourceCardIndex);
         }
-        else // From tableau - only allow if dragging the top card
+        else
         {
             var cards = tableauPiles.GetCardsInPile(dragSourcePile);
-            if (dragSourceCardIndex == cards.Count - 1) // Only top card
+            if (dragSourceCardIndex == cards.Count - 1)
             {
                 success = moveManager.MoveTableauToFoundation(dragSourcePile);
             }
@@ -317,6 +545,7 @@
         {
             moveCount++;
             CheckWinCondition();
+            AutoSaveGame(); // ✅ Save after move
         }
 
         ClearDragState();
@@ -325,7 +554,6 @@
 
     private void TryMoveWasteToFoundation(int wasteCardIndex)
     {
-        // Only allow moving the top card (last card in waste)
         var wasteCards = wastePile.GetAllCards();
         if (wasteCardIndex == wasteCards.Count - 1)
         {
@@ -333,6 +561,7 @@
             {
                 moveCount++;
                 CheckWinCondition();
+                AutoSaveGame();
                 StateHasChanged();
             }
         }
@@ -344,6 +573,7 @@
         {
             moveCount++;
             CheckWinCondition();
+            AutoSaveGame();
             StateHasChanged();
         }
     }
@@ -380,12 +610,15 @@
         }
     }
 
-    private void CheckWinCondition()
+    private async void CheckWinCondition()
     {
         if (moveManager.CheckWin())
         {
             showWinMessage = true;
             gameTimer?.Dispose();
+
+            // ✅ Delete saved game from localStorage
+            await moveManager.DeleteSavedGameAsync();
         }
 
         UpdateUIState();
@@ -408,7 +641,6 @@
         dragSourceCardIndex = -1;
     }
 
-    // Display helper methods
     private string GetCardColorClass(Card card)
     {
         return card.Color == Color.Red ? "card-red" : "card-black";
@@ -437,9 +669,35 @@
             _ => ""
         };
     }
-
-    public void Dispose()
+    private async void AutoSaveGame()
+    {
+        try
+        {
+            if (moveManager != null && !showWinMessage && moveCount > 0 && !showLoadPrompt)
+            {
+                Console.WriteLine($"💾 Auto-saving to localStorage... (Moves: {moveCount})");
+                bool saved = await moveManager.SaveGameAsync(moveCount, elapsedSeconds);
+                if (saved)
+                {
+                    Console.WriteLine("✅ Auto-save successful!");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Auto-save error: {ex.Message}");
+        }
+    }
+    public async void Dispose()
     {
         gameTimer?.Dispose();
+        autoSaveTimer?.Dispose();
+
+        if (moveManager != null && !showWinMessage && moveCount > 0)
+        {
+            Console.WriteLine("💾 Final save on dispose...");
+            await moveManager.SaveGameAsync(moveCount, elapsedSeconds);
+        }
     }
+
 }

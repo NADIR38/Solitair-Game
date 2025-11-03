@@ -33,7 +33,19 @@ namespace SolitaireGame.Backend
                 return;
             stock.Enqueue(card);
         }
+        public List<Card> GetAllCards()
+        {
+            var cards = new List<Card>();
+            var tempNode = stock.front;
 
+            while (tempNode != null)
+            {
+                cards.Add(tempNode.Data);
+                tempNode = tempNode.Next;
+            }
+
+            return cards;
+        }
         // New method to add card to front (for undo of draw)
         public void AddCardToFront(Card card)
         {

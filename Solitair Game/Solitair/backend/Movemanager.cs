@@ -2,6 +2,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
+using System.IO;
+using Blazored.LocalStorage;  // ✅ ADD THIS
+
 
 namespace SolitaireGame.Backend
 {
@@ -10,10 +14,15 @@ namespace SolitaireGame.Backend
         private readonly TableauPiles tableau;
         private readonly FoundationPile foundations;
         private readonly WastePile waste;
-        private readonly StockPile stock;
+        private StockPile stock;
 
         private readonly MyStack<Commands> UndoStack;
         private readonly MyStack<Commands> RedoStack;
+        private ILocalStorageService _localStorage;
+
+
+        // ✅ ADD SCORE TRACKING
+        private int currentScore = 0;
 
         public Movemanager(TableauPiles tableau, FoundationPile foundations, WastePile waste, StockPile stock)
         {
@@ -25,11 +34,24 @@ namespace SolitaireGame.Backend
             UndoStack = new MyStack<Commands>();
             RedoStack = new MyStack<Commands>();
         }
+        // ✅ ADD THIS - Set localStorage service
+        public void SetLocalStorage(ILocalStorageService localStorage)
+        {
+            _localStorage = localStorage;
+        }
+        // ✅ ADD THIS - GET SCORE
+        public int GetCurrentScore() => currentScore;
+
+        // ✅ ADD THIS - RESET SCORE (for new game)
+        public void ResetScore()
+        {
+            currentScore = 0;
+        }
 
         private void RecordMove(Commands command)
         {
             UndoStack.Push(command);
-            RedoStack.Clear(); // Clear redo stack when new move is made
+            RedoStack.Clear();
         }
 
         public bool MoveWasteToTableau(int pileIndex, int wasteCardIndex)
@@ -41,27 +63,26 @@ namespace SolitaireGame.Backend
             Card cardToMove = wasteCards[wasteCardIndex];
             Card targetTop = tableau.GetTopCard(pileIndex);
 
-            // Validate move
             if (targetTop == null && cardToMove.Rank != Rank.King)
                 return false;
             if (targetTop != null && !(IsOppositeColor(cardToMove, targetTop) && IsOneRankLower(cardToMove, targetTop)))
                 return false;
 
-            // Create command
             var command = new Commands(
                 Execute: () =>
                 {
                     waste.RemoveCard(cardToMove);
                     tableau.piles[pileIndex].AddCard(cardToMove);
+                    currentScore += 5;  // ✅ ADD SCORE
                 },
                 Undo: () =>
                 {
                     tableau.piles[pileIndex].RemoveCard();
                     waste.AddCard(cardToMove);
+                    currentScore -= 5;  // ✅ UNDO SCORE
                 }
             );
 
-            // Execute and record
             command.Execute();
             RecordMove(command);
             return true;
@@ -84,11 +105,13 @@ namespace SolitaireGame.Backend
                 {
                     waste.RemoveCard(cardToMove);
                     f.Add(cardToMove);
+                    currentScore += 10;  // ✅ ADD SCORE
                 },
                 Undo: () =>
                 {
                     f.Cards.Pop();
                     waste.AddCard(cardToMove);
+                    currentScore -= 10;  // ✅ UNDO SCORE
                 }
             );
 
@@ -107,11 +130,9 @@ namespace SolitaireGame.Backend
             if (!f.CanAdd(topCard))
                 return false;
 
-            // Capture state before move
             var removedCard = topCard;
             var pileCardsBeforeMove = tableau.piles[pileIndex].GetCards();
 
-            // Check if there's a card below that will be flipped
             Card cardThatWillBeFlipped = null;
             if (pileCardsBeforeMove.Count > 1)
             {
@@ -124,19 +145,19 @@ namespace SolitaireGame.Backend
                     var card = tableau.piles[pileIndex].RemoveCard();
                     f.Add(card);
                     tableau.piles[pileIndex].FlipTopCard();
+                    currentScore += 10;  // ✅ ADD SCORE
                 },
                 Undo: () =>
                 {
                     f.Cards.Pop();
 
-                    // If there was a card that got flipped, flip it back down first
                     if (cardThatWillBeFlipped != null && cardThatWillBeFlipped.IsFaceUp)
                     {
                         cardThatWillBeFlipped.IsFaceUp = false;
                     }
 
-                    // Add the removed card back
                     tableau.piles[pileIndex].AddCard(removedCard);
+                    currentScore -= 10;  // ✅ UNDO SCORE
                 }
             );
 
@@ -165,10 +186,8 @@ namespace SolitaireGame.Backend
             if (targetTop != null && !(IsOppositeColor(movingCard, targetTop) && IsOneRankLower(movingCard, targetTop)))
                 return false;
 
-            // Capture state
             var sequenceCopy = new List<Card>(sequence);
 
-            // Check if there's a card that will be flipped
             Card cardThatWillBeFlipped = null;
             if (startIndex > 0)
             {
@@ -182,20 +201,20 @@ namespace SolitaireGame.Backend
                     fromPile.FlipTopCard();
                     foreach (var c in sequenceCopy)
                         toPile.AddCard(c);
+                    currentScore += 3;  // ✅ ADD SCORE
                 },
                 Undo: () =>
                 {
                     toPile.RemoveTopCards(sequenceCopy.Count);
 
-                    // If a card was flipped, flip it back down first
                     if (cardThatWillBeFlipped != null && cardThatWillBeFlipped.IsFaceUp)
                     {
                         cardThatWillBeFlipped.IsFaceUp = false;
                     }
 
-                    // Add cards back to original pile
                     foreach (var c in sequenceCopy)
                         fromPile.AddCard(c);
+                    currentScore -= 3;  // ✅ UNDO SCORE
                 }
             );
 
@@ -208,7 +227,6 @@ namespace SolitaireGame.Backend
         {
             if (stock.IsEmpty())
             {
-                // Recycle waste back to stock
                 var wasteCards = waste.GetAllCards();
                 if (wasteCards.Count == 0)
                     return false;
@@ -249,7 +267,6 @@ namespace SolitaireGame.Backend
             }
             else
             {
-                // Draw up to 3 cards from stock
                 var drawnCards = new List<Card>();
                 int drawCount = Math.Min(3, stock.Count);
 
@@ -275,7 +292,6 @@ namespace SolitaireGame.Backend
                     },
                     Undo: () =>
                     {
-                        // Remove from waste in reverse order
                         for (int i = drawnCards.Count - 1; i >= 0; i--)
                         {
                             waste.RemoveCard(drawnCards[i]);
@@ -330,7 +346,6 @@ namespace SolitaireGame.Backend
 
         public bool CanAutoComplete()
         {
-            // Check if all cards are face up
             for (int i = 0; i < 7; i++)
             {
                 var cards = tableau.GetCardsInPile(i);
@@ -351,7 +366,6 @@ namespace SolitaireGame.Backend
             {
                 madeMoves = false;
 
-                // Try waste to foundation
                 var wasteCards = waste.GetAllCards();
                 if (wasteCards.Count > 0)
                 {
@@ -363,7 +377,6 @@ namespace SolitaireGame.Backend
                     }
                 }
 
-                // Try all tableau piles to foundation
                 for (int i = 0; i < 7; i++)
                 {
                     if (MoveTableauToFoundation(i))
@@ -378,6 +391,237 @@ namespace SolitaireGame.Backend
             return movesMade;
         }
 
+        // ✅ ========== COMPLETE FIXED SAVE/LOAD IMPLEMENTATION ========== 
+
+        private static string GetSavePath()
+        {
+            string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            string saveFolder = Path.Combine(appData, "SolitaireGame");
+
+            if (!Directory.Exists(saveFolder))
+                Directory.CreateDirectory(saveFolder);
+
+            return saveFolder;
+        }
+        public async Task<bool> SaveGameAsync(int moveCount, int elapsedSeconds, string key = "solitaire_savegame")
+        {
+            if (_localStorage == null)
+            {
+                Console.WriteLine("❌ LocalStorage not initialized");
+                return false;
+            }
+
+            try
+            {
+                var gameState = new GameState
+                {
+                    MoveCount = moveCount,
+                    ElapsedSeconds = elapsedSeconds,
+                    CurrentScore = currentScore,
+                    SavedAt = DateTime.Now
+                };
+
+                SerializableCard ToSerializable(Card c) => new SerializableCard
+                {
+                    Suit = (int)c.Suit,
+                    Rank = (int)c.Rank,
+                    Color = (int)c.Color,
+                    IsFaceUp = c.IsFaceUp
+                };
+
+                // Serialize Stock
+                var stockCards = stock.GetAllCards();
+                gameState.StockCards = stockCards.Select(ToSerializable).ToList();
+
+                // Serialize Waste
+                var wasteCards = waste.GetAllCards();
+                gameState.WasteCards = wasteCards.Select(ToSerializable).ToList();
+
+                // Serialize Tableau
+                gameState.TableauCards = new List<List<SerializableCard>>();
+                for (int i = 0; i < 7; i++)
+                {
+                    var pileCards = tableau.GetCardsInPile(i);
+                    gameState.TableauCards.Add(pileCards.Select(ToSerializable).ToList());
+                }
+
+                // Serialize Foundations
+                gameState.FoundationCards = new List<List<SerializableCard>>();
+                for (int i = 0; i < 4; i++)
+                {
+                    var foundation = foundations.GetFoundation((Suit)i);
+                    var foundationCards = foundation.Cards.ToListReversed();
+                    gameState.FoundationCards.Add(foundationCards.Select(ToSerializable).ToList());
+                }
+
+                // ✅ Save to localStorage
+                await _localStorage.SetItemAsync(key, gameState);
+
+                Console.WriteLine($"✅ Game saved to localStorage with key: {key}");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Save failed: {ex.Message}");
+                return false;
+            }
+        }
+        public async Task<bool> DeleteSavedGameAsync(string key = "solitaire_savegame")
+        {
+            if (_localStorage == null)
+                return false;
+
+            try
+            {
+                await _localStorage.RemoveItemAsync(key);
+                Console.WriteLine($"🗑️ Deleted saved game with key: {key}");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Delete failed: {ex.Message}");
+                return false;
+            }
+        }
+
+        // ✅ RestoreGame stays the same (synchronous is fine)
+        public bool RestoreGame(
+             GameState state,
+             out TableauPiles restoredTableau,
+             out FoundationPile restoredFoundations,
+             out WastePile restoredWaste,
+             out StockPile restoredStock,
+             out int moveCount,
+             out int elapsedSeconds,
+             out int score)
+        {
+            // ... (keep your existing RestoreGame implementation exactly the same) ...
+            try
+            {
+                moveCount = state.MoveCount;
+                elapsedSeconds = state.ElapsedSeconds;
+                score = state.CurrentScore;
+                currentScore = state.CurrentScore;
+
+                Card DeserializeCard(SerializableCard sc) => new Card(
+                    (Suit)sc.Suit,
+                    (Rank)sc.Rank,
+                    sc.IsFaceUp,
+                    (Color)sc.Color
+                );
+
+                var stockCards = state.StockCards.Select(DeserializeCard).ToList();
+                restoredStock = new StockPile(stockCards);
+
+                restoredWaste = new WastePile();
+                foreach (var sc in state.WasteCards)
+                {
+                    restoredWaste.AddCard(DeserializeCard(sc));
+                }
+
+                restoredTableau = new TableauPiles();
+                for (int i = 0; i < 7; i++)
+                {
+                    restoredTableau.piles[i].Clear();
+                    foreach (var sc in state.TableauCards[i])
+                    {
+                        restoredTableau.piles[i].AddCard(DeserializeCard(sc));
+                    }
+                }
+
+                restoredFoundations = new FoundationPile();
+                for (int i = 0; i < 4; i++)
+                {
+                    foreach (var sc in state.FoundationCards[i])
+                    {
+                        var card = DeserializeCard(sc);
+                        restoredFoundations.GetFoundation((Suit)i).Cards.Push(card);
+                    }
+                }
+
+                stock = restoredStock;
+
+                waste.Clear();
+                foreach (var sc in state.WasteCards)
+                {
+                    waste.AddCard(DeserializeCard(sc));
+                }
+
+                for (int i = 0; i < 7; i++)
+                {
+                    tableau.piles[i].Clear();
+                    foreach (var sc in state.TableauCards[i])
+                    {
+                        tableau.piles[i].AddCard(DeserializeCard(sc));
+                    }
+                }
+
+                for (int i = 0; i < 4; i++)
+                {
+                    while (foundations.GetFoundation((Suit)i).Cards.Count > 0)
+                    {
+                        foundations.GetFoundation((Suit)i).Cards.Pop();
+                    }
+
+                    foreach (var sc in state.FoundationCards[i])
+                    {
+                        var card = DeserializeCard(sc);
+                        foundations.GetFoundation((Suit)i).Cards.Push(card);
+                    }
+                }
+
+                UndoStack.Clear();
+                RedoStack.Clear();
+
+                Console.WriteLine("✅ Game restored successfully!");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Restore failed: {ex.Message}");
+
+                restoredTableau = null;
+                restoredFoundations = null;
+                restoredWaste = null;
+                restoredStock = null;
+                moveCount = 0;
+                elapsedSeconds = 0;
+                score = 0;
+                return false;
+            }
+        }
+        // ✅ REPLACE LoadGame method with this async version
+        public async Task<GameState> LoadGameAsync(string key = "solitaire_savegame")
+        {
+            if (_localStorage == null)
+            {
+                Console.WriteLine("❌ LocalStorage not initialized");
+                return null;
+            }
+
+            try
+            {
+                var gameState = await _localStorage.GetItemAsync<GameState>(key);
+
+                if (gameState == null)
+                {
+                    Console.WriteLine($"ℹ️ No save found with key: {key}");
+                    return null;
+                }
+
+                Console.WriteLine($"✅ Loaded game from localStorage");
+                return gameState;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Load failed: {ex.Message}");
+                return null;
+            }
+        }
+
+
+
+        // ✅ Helper methods
         private bool IsOppositeColor(Card a, Card b)
         {
             return a.Color != b.Color;

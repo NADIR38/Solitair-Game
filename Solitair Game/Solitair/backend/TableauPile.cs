@@ -37,6 +37,11 @@ namespace SolitaireGame.Backend
                 piles.Pop();
             }
         }
+        // ✅ ADD THIS METHOD
+        public void Clear()
+        {
+            piles.Clear();
+        }
 
         public Card GetTopCard()
         {
