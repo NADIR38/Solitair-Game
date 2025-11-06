@@ -860,7 +860,7 @@ It includes features like undo/redo, saving/loading state, and score tracking.
 
 ---
 
-## 🧩 UML Class Diagram
+# 🧩 UML Class Diagram
 
 Below is the complete **UML class diagram** of the Solitaire game architecture, rendered using Mermaid on GitHub.
 
