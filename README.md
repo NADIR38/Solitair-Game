@@ -853,7 +853,339 @@ SolitaireGame/
    Methods: 150+
    Custom Data Structures: 3 (Stack, Queue, LinkedList)
 ```
+## 📊 Class Diagram
+````mermaid
+classDiagram
+    %% Enums
+    class Suit {
+        <<enumeration>>
+        Hearts
+        Diamonds
+        Clubs
+        Spades
+    }
+    
+    class Rank {
+        <<enumeration>>
+        Ace
+        Two to Ten
+        Jack
+        Queen
+        King
+    }
+    
+    class Color {
+        <<enumeration>>
+        Red
+        Black
+    }
+    
+    %% Core Card Class
+    class Card {
+        -Suit Suit
+        -Rank Rank
+        -Color Color
+        -bool IsFaceUp
+        +Card(Suit, Rank, bool, Color)
+        +Flip()
+        +ToString() string
+    }
+    
+    %% Data Structures
+    class Node~T~ {
+        +T Data
+        +Node~T~ Next
+        +Node(T data)
+    }
+    
+    class MyLinkedList~T~ {
+        -Node~T~ head
+        -int count
+        +AddFirst(T item)
+        +AddLast(T item)
+        +Remove(T item) bool
+        +RemoveFirst() T
+        +Clear()
+        +ToList() List~T~
+        +Count int
+    }
+    
+    class MyStack~T~ {
+        -Node~T~ top
+        -int count
+        +Push(T item)
+        +Pop() T
+        +Peek() T
+        +IsEmpty() bool
+        +ToListReversed() List~T~
+        +Clear()
+        +Count int
+    }
+    
+    class MyQueue~T~ {
+        -Node~T~ front
+        -Node~T~ rear
+        -int count
+        +Enqueue(T item)
+        +Dequeue() T
+        +GetFront() T
+        +IsEmpty() bool
+        +GetAllCards() List~T~
+        +Count int
+    }
+    
+    %% Game Components
+    class Deck {
+        -MyLinkedList~Card~ cards
+        -Random rand
+        +Deck()
+        +ShuffleCards(MyLinkedList~Card~)
+        +GetCards() MyLinkedList~Card~
+    }
+    
+    class StockPile {
+        -MyQueue~Card~ cards
+        +StockPile(List~Card~)
+        +DrawCards(int count) List~Card~
+        +AddCard(Card)
+        +GetAllCards() List~Card~
+        +Count int
+        +IsEmpty() bool
+    }
+    
+    class WastePile {
+        -MyLinkedList~Card~ cards
+        +AddCard(Card)
+        +RemoveCard(Card) bool
+        +GetAllCards() List~Card~
+        +GetLastThree() List~Card~
+        +Clear()
+        +Count int
+    }
+    
+    class TableauPile {
+        -MyStack~Card~ cards
+        -int pileIndex
+        +TableauPile(int index)
+        +AddCard(Card)
+        +RemoveCard() Card
+        +RemoveCards(int count) List~Card~
+        +GetTopCard() Card
+        +GetAllCards() List~Card~
+        +FlipTopCard()
+        +Count int
+        +IsEmpty() bool
+    }
+    
+    class TableauPiles {
+        -TableauPile[] piles
+        +TableauPiles()
+        +GetPile(int index) TableauPile
+        +GetCardsInPile(int index) List~Card~
+        +AddCardToPile(int index, Card)
+    }
+    
+    class Foundation {
+        -Suit suit
+        -MyStack~Card~ cards
+        +Foundation(Suit)
+        +AddCard(Card) bool
+        +RemoveCard() Card
+        +Peek() Card
+        +GetAllCards() List~Card~
+        +Count int
+        +IsEmpty() bool
+    }
+    
+    class FoundationPile {
+        -Foundation[] foundations
+        +FoundationPile()
+        +GetFoundation(Suit) Foundation
+        +IsComplete() bool
+        +GetAllFoundations() Foundation[]
+    }
+    
+    %% Command Pattern
+    class Commands {
+        +Action Execute
+        +Action Undo
+        +Commands(Action execute, Action undo)
+    }
+    
+    %% Serialization
+    class SerializableCard {
+        +int Suit
+        +int Rank
+        +int Color
+        +bool IsFaceUp
+    }
+    
+    class GameState {
+        +List~SerializableCard~ StockCards
+        +List~SerializableCard~ WasteCards
+        +List~List~SerializableCard~~ TableauCards
+        +List~List~SerializableCard~~ FoundationCards
+        +int MoveCount
+        +int ElapsedSeconds
+        +int CurrentScore
+        +DateTime SavedAt
+    }
+    
+    %% Core Game Logic
+    class MoveManager {
+        -StockPile stock
+        -WastePile waste
+        -TableauPiles tableau
+        -FoundationPile foundations
+        -MyStack~Commands~ UndoStack
+        -MyStack~Commands~ RedoStack
+        -int currentScore
+        +MoveManager(Deck)
+        +DrawFromStock() bool
+        +MoveWasteToTableau(int, int) bool
+        +MoveWasteToFoundation(int) bool
+        +MoveTableauToTableau(int, int, int) bool
+        +MoveTableauToFoundation(int) bool
+        +UndoLastMove() bool
+        +RedoLastMove() bool
+        +SaveGame(int, int) bool
+        +LoadGame() GameState
+        +RestoreGame(GameState) bool
+        +CheckWinCondition() bool
+        +GetCurrentScore() int
+    }
+    
+    %% Blazor Component
+    class SolitaireRazor {
+        -MoveManager moveManager
+        -int moveCount
+        -int elapsedSeconds
+        -bool showWinMessage
+        -bool showLoadPrompt
+        -Timer gameTimer
+        +OnInitializedAsync()
+        +OnAfterRender(bool)
+        +Dispose()
+        +NewGame()
+        +OnDragStart(Card, int, int)
+        +OnDropOnTableau(int)
+        +OnDropOnFoundation(Suit)
+        +CheckForSavedGame()
+        +LoadSavedGame()
+        +StartNewGame()
+    }
+    
+    %% Relationships
+    Card --> Suit
+    Card --> Rank
+    Card --> Color
+    
+    MyLinkedList~T~ --> Node~T~
+    MyStack~T~ --> Node~T~
+    MyQueue~T~ --> Node~T~
+    
+    Deck --> MyLinkedList~Card~
+    Deck --> Card
+    
+    StockPile --> MyQueue~Card~
+    StockPile --> Card
+    
+    WastePile --> MyLinkedList~Card~
+    WastePile --> Card
+    
+    TableauPile --> MyStack~Card~
+    TableauPile --> Card
+    
+    TableauPiles --> TableauPile
+    
+    Foundation --> MyStack~Card~
+    Foundation --> Card
+    Foundation --> Suit
+    
+    FoundationPile --> Foundation
+    
+    SerializableCard ..> Card : serializes
+    GameState --> SerializableCard
+    
+    MoveManager --> StockPile
+    MoveManager --> WastePile
+    MoveManager --> TableauPiles
+    MoveManager --> FoundationPile
+    MoveManager --> MyStack~Commands~
+    MoveManager --> Commands
+    MoveManager --> GameState
+    MoveManager --> Deck
+    
+    SolitaireRazor --> MoveManager
+    SolitaireRazor --> Card
+    
+    note for MyStack~T~ "Generic LIFO\nUsed by Tableau,\nFoundation, Undo/Redo"
+    note for MyQueue~T~ "Generic FIFO\nUsed by Stock Pile"
+    note for MyLinkedList~T~ "Generic LinkedList\nUsed by Deck, Waste"
+    note for MoveManager "Core Game Logic\n1200+ lines\nHandles all moves,\nscoring, save/load"
+    note for Commands "Command Pattern\nfor Undo/Redo\nwith score tracking"
+` ` `
+````
 
+### **Step 2: Add to Your README**
+
+Find the **"Project Structure"** or **"Architecture"** section in your README and add:
+````markdown
+---
+
+## 🏗️ **Class Diagram & Architecture**
+
+<div align="center">
+
+### 📊 Complete UML Class Diagram
+
+The following diagram shows the complete architecture of the Solitaire game, including all classes, relationships, and key methods.
+
+</div>
+```mermaid
+[PASTE THE MERMAID CODE HERE]
+` ` `
+
+### 🔍 **Diagram Legend**
+
+| Symbol | Meaning |
+|:---:|:---|
+| `→` | **Association** (Class uses another class) |
+| `..>` | **Dependency** (Temporary relationship) |
+| `~T~` | **Generic Type** (Template/Generic class) |
+| `-` | **Private** member |
+| `+` | **Public** member |
+| `<<enumeration>>` | Enum type |
+
+### 📚 **Architecture Layers**
+```
+┌─────────────────────────────────────────┐
+│         PRESENTATION LAYER              │
+│      (SolitaireRazor Component)         │
+└────────────────┬────────────────────────┘
+                 │
+┌────────────────▼────────────────────────┐
+│         BUSINESS LOGIC LAYER            │
+│         (MoveManager - Core)            │
+└────────────────┬────────────────────────┘
+                 │
+┌────────────────▼────────────────────────┐
+│         GAME COMPONENTS LAYER           │
+│  (Stock, Waste, Tableau, Foundation)    │
+└────────────────┬────────────────────────┘
+                 │
+┌────────────────▼────────────────────────┐
+│      DATA STRUCTURES LAYER              │
+│   (MyStack, MyQueue, MyLinkedList)      │
+└────────────────┬────────────────────────┘
+                 │
+┌────────────────▼────────────────────────┐
+│         DATA MODEL LAYER                │
+│    (Card, Suit, Rank, Color)            │
+└─────────────────────────────────────────┘
+````
+
+---
 ### 🔍 **Key Files Explained**
 
 <div align="center">
