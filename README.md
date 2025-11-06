@@ -853,6 +853,18 @@ SolitaireGame/
    Methods: 150+
    Custom Data Structures: 3 (Stack, Queue, LinkedList)
 ```
+# 🃏 Solitaire Game (C# + Blazor)
+
+This project implements a full Solitaire game using **Object-Oriented Programming**, custom **data structures**, and **design patterns** such as Command and Factory.  
+It includes features like undo/redo, saving/loading state, and score tracking.
+
+---
+
+## 🧩 UML Class Diagram
+
+Below is the complete **UML class diagram** of the Solitaire game architecture, rendered using Mermaid on GitHub.
+
+```mermaid
 classDiagram
 
 %% ============================
@@ -1163,27 +1175,6 @@ note for MyLinkedList "Generic LinkedList\nUsed by Deck, Waste"
 note for MoveManager "Core Game Logic\n1200+ lines\nHandles all moves,\nscoring, save/load"
 note for Commands "Command Pattern\nfor Undo/Redo\nwith score tracking"
 
-<div align="center">
-
-### 📊 Complete UML Class Diagram
-
-The following diagram shows the complete architecture of the Solitaire game, including all classes, relationships, and key methods.
-
-</div>
-```mermaid
-[PASTE THE MERMAID CODE HERE]
-` ` `
-
-### 🔍 **Diagram Legend**
-
-| Symbol | Meaning |
-|:---:|:---|
-| `→` | **Association** (Class uses another class) |
-| `..>` | **Dependency** (Temporary relationship) |
-| `~T~` | **Generic Type** (Template/Generic class) |
-| `-` | **Private** member |
-| `+` | **Public** member |
-| `<<enumeration>>` | Enum type |
 
 ### 📚 **Architecture Layers**
 ```
