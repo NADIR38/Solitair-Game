@@ -1137,7 +1137,7 @@ MoveManager --> Deck : initializes
 
 SolitaireRazor --> MoveManager : uses
 SolitaireRazor --> Card : displays
-
+```
 
 ### 📚 **Architecture Layers**
 ```
