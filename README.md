@@ -38,7 +38,7 @@ const SolitaireGame = {
     ],
     playReference: "https://solitaired.com/",
     motto: "Learn by Building, Master by Playing! 🎯"
-    Game Link:"https://nadir-solitaire-game.netlify.app/"
+    GameLink:"https://nadir-solitaire-game.netlify.app/"
 };
 
 console.log("🎴 Welcome to the ultimate Solitaire experience! 🎴");
@@ -853,16 +853,9 @@ SolitaireGame/
    Methods: 150+
    Custom Data Structures: 3 (Stack, Queue, LinkedList)
 ```
-# 🃏 Solitaire Game (C# + Blazor)
-
-This project implements a full Solitaire game using **Object-Oriented Programming**, custom **data structures**, and **design patterns** such as Command and Factory.  
-It includes features like undo/redo, saving/loading state, and score tracking.
-
----
 
 # 🧩 UML Class Diagram
 
-Below is the complete **UML class diagram** of the Solitaire game architecture, rendered using Mermaid on GitHub.
 
 ```mermaid
 classDiagram
@@ -2956,7 +2949,7 @@ dotnet run
 
 ### 🃏 **Built with ❤️ by NADIR JAMAL** 🃏
 
-**CSC200 - Data Structures & Algorithms | University of Central Punjab**
+**CSC200 - Data Structures & Algorithms | University of Engineering and Technology**
 
 <img src="https://komarev.com/ghpvc/?username=NADIR38&label=README%20Views&color=4169E1&style=for-the-badge" alt="Views" />
 
