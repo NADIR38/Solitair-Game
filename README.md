@@ -867,12 +867,9 @@ Below is the complete **UML class diagram** of the Solitaire game architecture, 
 ```mermaid
 classDiagram
 
-%% ============================
 %% Enumerations
-%% ============================
-
 class Rank {
-    <<enum>>
+    <<enumeration>>
     Ace
     Two
     Three
@@ -889,72 +886,66 @@ class Rank {
 }
 
 class Color {
-    <<enum>>
+    <<enumeration>>
     Red
     Black
 }
 
 class Suit {
-    <<enum>>
+    <<enumeration>>
     Hearts
     Diamonds
     Clubs
     Spades
 }
 
-%% ============================
 %% Core Card Class
-%% ============================
-
 class Card {
-    -Suit Suit
-    -Rank Rank
-    -Color Color
-    -bool IsFaceUp
+    -Suit suit
+    -Rank rank
+    -Color color
+    -bool isFaceUp
     +Card(Suit, Rank, bool, Color)
-    +Flip()
+    +Flip() void
     +ToString() string
 }
 
-%% ============================
 %% Data Structures
-%% ============================
-
-class Node {
+class Node~T~ {
     +T Data
-    +Node Next
+    +Node~T~ Next
     +Node(T data)
 }
 
-class MyLinkedList {
-    -Node head
+class MyLinkedList~T~ {
+    -Node~T~ head
     -int count
-    +AddFirst(T item)
-    +AddLast(T item)
+    +AddFirst(T item) void
+    +AddLast(T item) void
     +Remove(T item) bool
     +RemoveFirst() T
-    +Clear()
+    +Clear() void
     +ToList() List~T~
     +Count int
 }
 
-class MyStack {
-    -Node top
+class MyStack~T~ {
+    -Node~T~ top
     -int count
-    +Push(T item)
+    +Push(T item) void
     +Pop() T
     +Peek() T
     +IsEmpty() bool
     +ToListReversed() List~T~
-    +Clear()
+    +Clear() void
     +Count int
 }
 
-class MyQueue {
-    -Node front
-    -Node rear
+class MyQueue~T~ {
+    -Node~T~ front
+    -Node~T~ rear
     -int count
-    +Enqueue(T item)
+    +Enqueue(T item) void
     +Dequeue() T
     +GetFront() T
     +IsEmpty() bool
@@ -962,48 +953,45 @@ class MyQueue {
     +Count int
 }
 
-%% ============================
 %% Game Components
-%% ============================
-
 class Deck {
-    -MyLinkedList cards
+    -MyLinkedList~Card~ cards
     -Random rand
     +Deck()
-    +ShuffleCards(MyLinkedList cards)
-    +GetCards() MyLinkedList
+    +ShuffleCards(MyLinkedList~Card~ cards) void
+    +GetCards() MyLinkedList~Card~
 }
 
 class StockPile {
-    -MyQueue cards
+    -MyQueue~Card~ cards
     +StockPile(List~Card~)
     +DrawCards(int count) List~Card~
-    +AddCard(Card)
+    +AddCard(Card) void
     +GetAllCards() List~Card~
     +Count int
     +IsEmpty() bool
 }
 
 class WastePile {
-    -MyLinkedList cards
-    +AddCard(Card)
+    -MyLinkedList~Card~ cards
+    +AddCard(Card) void
     +RemoveCard(Card) bool
     +GetAllCards() List~Card~
     +GetLastThree() List~Card~
-    +Clear()
+    +Clear() void
     +Count int
 }
 
 class TableauPile {
-    -MyStack cards
+    -MyStack~Card~ cards
     -int pileIndex
     +TableauPile(int index)
-    +AddCard(Card)
+    +AddCard(Card) void
     +RemoveCard() Card
     +RemoveCards(int count) List~Card~
     +GetTopCard() Card
     +GetAllCards() List~Card~
-    +FlipTopCard()
+    +FlipTopCard() void
     +Count int
     +IsEmpty() bool
 }
@@ -1013,12 +1001,12 @@ class TableauPiles {
     +TableauPiles()
     +GetPile(int index) TableauPile
     +GetCardsInPile(int index) List~Card~
-    +AddCardToPile(int index, Card)
+    +AddCardToPile(int index, Card) void
 }
 
 class Foundation {
     -Suit suit
-    -MyStack cards
+    -MyStack~Card~ cards
     +Foundation(Suit)
     +AddCard(Card) bool
     +RemoveCard() Card
@@ -1036,20 +1024,14 @@ class FoundationPile {
     +GetAllFoundations() Foundation[]
 }
 
-%% ============================
 %% Command Pattern
-%% ============================
-
 class Commands {
     +Action Execute
     +Action Undo
     +Commands(Action execute, Action undo)
 }
 
-%% ============================
 %% Serialization
-%% ============================
-
 class SerializableCard {
     +int Suit
     +int Rank
@@ -1068,17 +1050,14 @@ class GameState {
     +DateTime SavedAt
 }
 
-%% ============================
 %% Core Game Logic
-%% ============================
-
 class MoveManager {
     -StockPile stock
     -WastePile waste
     -TableauPiles tableau
     -FoundationPile foundations
-    -MyStack undoStack
-    -MyStack redoStack
+    -MyStack~Commands~ undoStack
+    -MyStack~Commands~ redoStack
     -int currentScore
     +MoveManager(Deck)
     +DrawFromStock() bool
@@ -1095,10 +1074,7 @@ class MoveManager {
     +GetCurrentScore() int
 }
 
-%% ============================
 %% Blazor Component
-%% ============================
-
 class SolitaireRazor {
     -MoveManager moveManager
     -int moveCount
@@ -1106,74 +1082,61 @@ class SolitaireRazor {
     -bool showWinMessage
     -bool showLoadPrompt
     -Timer gameTimer
-    +OnInitializedAsync()
-    +OnAfterRender(bool)
-    +Dispose()
-    +NewGame()
-    +OnDragStart(Card, int, int)
-    +OnDropOnTableau(int)
-    +OnDropOnFoundation(Suit)
-    +CheckForSavedGame()
-    +LoadSavedGame()
-    +StartNewGame()
+    +OnInitializedAsync() Task
+    +OnAfterRender(bool) void
+    +Dispose() void
+    +NewGame() void
+    +OnDragStart(Card, int, int) void
+    +OnDropOnTableau(int) void
+    +OnDropOnFoundation(Suit) void
+    +CheckForSavedGame() void
+    +LoadSavedGame() void
+    +StartNewGame() void
 }
 
-%% ============================
 %% Relationships
-%% ============================
+Card --> Suit : uses
+Card --> Rank : uses
+Card --> Color : uses
 
-Card --> Suit
-Card --> Rank
-Card --> Color
+MyLinkedList~T~ --> Node~T~ : contains
+MyStack~T~ --> Node~T~ : contains
+MyQueue~T~ --> Node~T~ : contains
 
-MyLinkedList --> Node
-MyStack --> Node
-MyQueue --> Node
+Deck --> MyLinkedList~Card~ : contains
+Deck --> Card : manages
 
-Deck --> MyLinkedList
-Deck --> Card
+StockPile --> MyQueue~Card~ : uses
+StockPile --> Card : stores
 
-StockPile --> MyQueue
-StockPile --> Card
+WastePile --> MyLinkedList~Card~ : uses
+WastePile --> Card : stores
 
-WastePile --> MyLinkedList
-WastePile --> Card
+TableauPile --> MyStack~Card~ : uses
+TableauPile --> Card : stores
 
-TableauPile --> MyStack
-TableauPile --> Card
+TableauPiles --> TableauPile : contains
 
-TableauPiles --> TableauPile
+Foundation --> MyStack~Card~ : uses
+Foundation --> Card : stores
+Foundation --> Suit : validates
 
-Foundation --> MyStack
-Foundation --> Card
-Foundation --> Suit
-
-FoundationPile --> Foundation
+FoundationPile --> Foundation : contains
 
 SerializableCard ..> Card : serializes
-GameState --> SerializableCard
+GameState --> SerializableCard : contains
 
-MoveManager --> StockPile
-MoveManager --> WastePile
-MoveManager --> TableauPiles
-MoveManager --> FoundationPile
-MoveManager --> MyStack
-MoveManager --> Commands
-MoveManager --> GameState
-MoveManager --> Deck
+MoveManager --> StockPile : manages
+MoveManager --> WastePile : manages
+MoveManager --> TableauPiles : manages
+MoveManager --> FoundationPile : manages
+MoveManager --> MyStack~Commands~ : uses
+MoveManager --> Commands : executes
+MoveManager --> GameState : saves/loads
+MoveManager --> Deck : initializes
 
-SolitaireRazor --> MoveManager
-SolitaireRazor --> Card
-
-%% ============================
-%% Notes
-%% ============================
-
-note for MyStack "Generic LIFO\nUsed by Tableau,\nFoundation, Undo/Redo"
-note for MyQueue "Generic FIFO\nUsed by Stock Pile"
-note for MyLinkedList "Generic LinkedList\nUsed by Deck, Waste"
-note for MoveManager "Core Game Logic\n1200+ lines\nHandles all moves,\nscoring, save/load"
-note for Commands "Command Pattern\nfor Undo/Redo\nwith score tracking"
+SolitaireRazor --> MoveManager : uses
+SolitaireRazor --> Card : displays
 
 
 ### 📚 **Architecture Layers**
